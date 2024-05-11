@@ -12,9 +12,8 @@ public class Main {
             tree.put(myTestingClass, student);
         }
 
-        for (MyTestingClass key : tree) {
-            Student student = tree.get(key);
-            System.out.println("Key: " + key + ", Value: " + student);
+        for (BST.Entry<MyTestingClass, Student> entry : tree) {
+            System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue());
         }
 
         String searchKey = "ABCDE";
@@ -43,5 +42,3 @@ public class Main {
         return sb.toString();
     }
 }
-
-

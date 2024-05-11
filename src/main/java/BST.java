@@ -1,6 +1,8 @@
 import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Stack;
 
-public class BST<K extends Comparable<K>, V> implements Iterable<K> {
+public class BST<K extends Comparable<K>, V> implements Iterable<BST.Entry<K, V>> {
     private Node root;
     private int size;
 
@@ -16,101 +18,146 @@ public class BST<K extends Comparable<K>, V> implements Iterable<K> {
     }
 
     public void put(K key, V value) {
-        root = put(root, key, value);
-    }
-
-    private Node put(Node node, K key, V value) {
-        if (node == null) {
+        if (root == null) {
+            root = new Node(key, value);
             size++;
-            return new Node(key, value);
+            return;
         }
-        int cmp = key.compareTo(node.key);
-        if (cmp < 0) {
-            node.left = put(node.left, key, value);
-        } else if (cmp > 0) {
-            node.right = put(node.right, key, value);
-        } else {
-            node.value = value;
+
+        Node current = root;
+        while (true) {
+            int cmp = key.compareTo(current.key);
+            if (cmp < 0) {
+                if (current.left == null) {
+                    current.left = new Node(key, value);
+                    size++;
+                    return;
+                }
+                current = current.left;
+            } else if (cmp > 0) {
+                if (current.right == null) {
+                    current.right = new Node(key, value);
+                    size++;
+                    return;
+                }
+                current = current.right;
+            } else {
+                current.value = value; // Update value if key already exists
+                return;
+            }
         }
-        return node;
     }
 
     public V get(K key) {
-        Node node = get(root, key);
-        return node == null ? null : node.value;
-    }
-
-    private Node get(Node node, K key) {
-        while (node != null) {
-            int cmp = key.compareTo(node.key);
+        Node current = root;
+        while (current != null) {
+            int cmp = key.compareTo(current.key);
             if (cmp < 0) {
-                node = node.left;
+                current = current.left;
             } else if (cmp > 0) {
-                node = node.right;
+                current = current.right;
             } else {
-                return node;
+                return current.value;
             }
         }
         return null;
     }
 
     public void delete(K key) {
-        root = delete(root, key);
-    }
-
-    private Node delete(Node node, K key) {
-        if (node == null) {
-            return null;
+        Node parent = null;
+        Node current = root;
+        while (current != null) {
+            int cmp = key.compareTo(current.key);
+            if (cmp == 0) {
+                break;
+            }
+            parent = current;
+            if (cmp < 0) {
+                current = current.left;
+            } else {
+                current = current.right;
+            }
         }
-        int cmp = key.compareTo(node.key);
-        if (cmp < 0) {
-            node.left = delete(node.left, key);
-        } else if (cmp > 0) {
-            node.right = delete(node.right, key);
+        if (current == null) {
+            return; // Key not found
+        }
+        size--;
+        if (current.left == null) {
+            if (parent == null) {
+                root = current.right;
+            } else if (current == parent.left) {
+                parent.left = current.right;
+            } else {
+                parent.right = current.right;
+            }
+        } else if (current.right == null) {
+            if (parent == null) {
+                root = current.left;
+            } else if (current == parent.left) {
+                parent.left = current.left;
+            } else {
+                parent.right = current.left;
+            }
         } else {
-            if (node.right == null) {
-                return node.left;
+            Node successor = getSuccessor(current);
+            if (parent == null) {
+                root = successor;
+            } else if (current == parent.left) {
+                parent.left = successor;
+            } else {
+                parent.right = successor;
             }
-            if (node.left == null) {
-                return node.right;
-            }
-            Node successor = min(node.right);
-            successor.right = deleteMin(node.right);
-            successor.left = node.left;
-            node = successor;
-            size--;
+            successor.left = current.left;
         }
-        return node;
     }
 
-    private Node deleteMin(Node node) {
-        if (node.left == null) {
-            return node.right;
+    private Node getSuccessor(Node node) {
+        Node parent = node;
+        Node successor = node;
+        Node current = node.right;
+        while (current != null) {
+            parent = successor;
+            successor = current;
+            current = current.left;
         }
-        node.left = deleteMin(node.left);
-        return node;
+        if (successor != node.right) {
+            parent.left = successor.right;
+            successor.right = node.right;
+        }
+        return successor;
     }
 
-    private Node min(Node node) {
-        while (node.left != null) {
-            node = node.left;
-        }
-        return node;
-    }
-
-    public Iterator<K> iterator() {
-        return new KeyIterator(root);
+    public Iterator<Entry<K, V>> iterator() {
+        return new InOrderIterator();
     }
 
     public int size() {
         return size;
     }
 
-    private class KeyIterator implements Iterator<K> {
-        private CustomStack<Node> stack;
+    public static class Entry<K, V> {
+        private K key;
+        private V value;
 
-        public KeyIterator(Node root) {
-            stack = new CustomStack<>();
+        public Entry(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public K getKey() {
+            return key;
+        }
+
+        public V getValue() {
+            return value;
+        }
+    }
+
+    private class InOrderIterator implements Iterator<Entry<K, V>> {
+        private Stack<Node> stack;
+
+        public InOrderIterator() {
+            stack = new Stack<>();
             pushLeft(root);
         }
 
@@ -125,51 +172,13 @@ public class BST<K extends Comparable<K>, V> implements Iterable<K> {
             return !stack.isEmpty();
         }
 
-        public K next() {
+        public Entry<K, V> next() {
             if (!hasNext()) {
-                throw new IllegalStateException("No more elements");
+                throw new NoSuchElementException("No more elements");
             }
             Node current = stack.pop();
             pushLeft(current.right);
-            return current.key;
-        }
-    }
-
-    // Custom stack implementation
-    private static class CustomStack<T> {
-        private Object[] elements;
-        private int size;
-        private static final int DEFAULT_CAPACITY = 10;
-
-        public CustomStack() {
-            this.elements = new Object[DEFAULT_CAPACITY];
-            this.size = 0;
-        }
-
-        public void push(T element) {
-            if (size == elements.length) {
-                resize(elements.length * 2);
-            }
-            elements[size++] = element;
-        }
-
-        public T pop() {
-            if (isEmpty()) {
-                throw new IllegalStateException("Stack is empty");
-            }
-            T element = (T) elements[--size];
-            elements[size] = null;
-            return element;
-        }
-
-        public boolean isEmpty() {
-            return size == 0;
-        }
-
-        private void resize(int capacity) {
-            Object[] newElements = new Object[capacity];
-            System.arraycopy(elements, 0, newElements, 0, size);
-            elements = newElements;
+            return new Entry<>(current.key, current.value);
         }
     }
 }
